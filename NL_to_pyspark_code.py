@@ -18,7 +18,7 @@ from dateparser.search import search_dates
 
 
 ##input inquiry 
-example_sent = "i need the position of all players "
+example_sent = "What’s the lowest pick in round 1?"
 
 example_sent=example_sent.lower()
 ## configuring dictionary for the dataframes available with their attributes 
@@ -60,13 +60,20 @@ Where_list=["have","has","having","during","which","for","from","with","between"
 
 for i in range(len(word_tokens)):
     if word_tokens[i] in Where_list:
-        m=" " + word_tokens[i] + " "
-        splitted_text=example_sent.split(m)
-        Select_sent=splitted_text[0]
-        Where_sent=splitted_text[1]
-        word_tokens_where = word_tokenize(splitted_text[1]) 
-        word_tokens_select = word_tokenize(splitted_text[0]) 
-        where_exist=True
+        if i == 0:
+            m=word_tokens[i] + " "
+            splitted_text=example_sent.split(m)
+            Select_sent=splitted_text[1]
+            word_tokens_select = word_tokenize(splitted_text[1])  
+
+        else:
+             m=" " + word_tokens[i] + " "
+             splitted_text=example_sent.split(m)
+             Select_sent=splitted_text[0]
+             Where_sent=splitted_text[1]
+             word_tokens_where = word_tokenize(splitted_text[1]) 
+             where_exist=True
+             word_tokens_select = word_tokenize(splitted_text[0])  
         break
 
   #check for country names
@@ -94,6 +101,7 @@ stop_words.discard("between")
 stop_words.add("what is ") 
 stop_words.add(",") 
 stop_words.add("done")
+stop_words.add("?")
 
 
 
@@ -358,7 +366,8 @@ agg_Dict={"min":"min"," max ":"max","minimumm":"min","maximum":"max","total numb
 for i in agg_Dict:
     if i in example_sent:
          splitted_AGG=i.split(" ")
-         if filtered_sentence_select!=[]:
+         filtered_sentence_wh=filtered_sentence_where
+         if filtered_sentence_select!=[] or filtered_sentence_where!=[]:
              mapping_Dic["AGG"].append(agg_Dict[i])
          for e in splitted_AGG:
              if e in filtered_sentence_select:
@@ -371,20 +380,23 @@ for i in agg_Dict:
          
 
         
-operator_Dic={"with names":"=","named":"=","before":"<","after":">","since":">","greater than":">","less than" : "<","more than": ">","lower than":"<","equal":"=","equals":"=","=":"=","is":"="," in ":"=","are":"=","during":"="}
-
+operator_Dic={"with names":"=","named":"=","before":"<","after":">","since":">","greater than":">","less than" : "<","more than": ">","lower than":"<","equal":"=","equals":"=","=":"="," is in ":"=","is":"="," in ":"=","are":"=","during":"="}
+previous_word=""
 for i in operator_Dic:
+    if i in previous_word:
+        continue
     if i in example_sent:      
         count_op=example_sent.count(i)
         for c in range(count_op):
             mapping_Dic["operator"].append(operator_Dic[i])   
             splitted_operator=i.split(" ")
-            for e in splitted_operator:
+        for e in splitted_operator:
                if where_exist:
                   if e in filtered_sentence_where:
                      filtered_sentence_where.remove(e) 
                elif e in filtered_sentence_select:
                    filtered_sentence_select.remove(e)
+        previous_word=i
 
 Ranges_Dic=["between" , "from"]
 for i in Ranges_Dic:
@@ -468,6 +480,7 @@ if mapping_Dic["Where"]==[]:
         if mapping_Dic["operator"] != []:
             mapping_Dic["Where"]=mapping_Dic["Select"]    
             
+   ##merging the strings found in op_values if the where fields are less than op_value fields (example operating values have names)         
 if len(mapping_Dic["op_values"])>len(mapping_Dic["Where"]):
     if  "and" not in Where_sent:
         #m=len(mapping_Dic["op_values"])-len(mapping_Dic["Where"]) 
@@ -491,6 +504,7 @@ Df_name=list(dict.fromkeys(Df_name))
 if len(Df_name) > 1:
     print ("error: attributes are from different tables" )
 
+print(mapping_Dic)
 
 ## generating the query
 if mapping_Dic["Select"] != [] and len(Df_name) == 1:
@@ -505,7 +519,7 @@ if mapping_Dic["Select"] != [] and len(Df_name) == 1:
     if mapping_Dic["between"]!=[]:
          output_query=output_query + ".where('" + mapping_Dic["Where"][0]+"').between("+ mapping_Dic["between"][0]+","+ mapping_Dic["between"][1] +")"
     if mapping_Dic["Where"]!=[] and mapping_Dic["between"]==[]:
-        output_query=output_query + ".where('" + mapping_Dic["Where"][0]+"'"+ mapping_Dic["operator"][0] +"'"+mapping_Dic["op_values"][0]+"')"
+         output_query=output_query + ".where('" + mapping_Dic["Where"][0]+"'"+ mapping_Dic["operator"][0] +"'"+mapping_Dic["op_values"][0]+"')"
         
     
 
